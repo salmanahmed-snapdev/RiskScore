@@ -3,4 +3,11 @@ uvicorn[standard]
 python-dotenv
 pymongo[srv]
 fpdf2
-python-dotenv
+httpx
+PyJWT
+motor
+bcrypt
+pydantic
+pydantic-settings
+email_validator
+python-multipart

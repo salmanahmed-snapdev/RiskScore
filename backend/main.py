@@ -59,7 +59,7 @@ def health_check():
     except ConnectionFailure as e:
         raise HTTPException(status_code=503, detail=f"Database connection failed: {e}")
 
-from .routes import auth, patients
+from routes import auth, patients
 
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(patients.router, prefix="/api/v1")

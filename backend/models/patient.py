@@ -26,7 +26,7 @@ class Patient(BaseModel):
 
     class Config:
         collection = "patients"
-        allow_population_by_field_name = True
+        populate_by_name = True
         json_encoders = {
             datetime: lambda dt: dt.isoformat(),
             

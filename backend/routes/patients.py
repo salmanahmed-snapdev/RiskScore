@@ -1,12 +1,12 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List
-from ..models.patient import Patient
-from ..main import get_database
-from .auth import get_current_user
-from ..models.user import User
+from models.patient import Patient
+from main import get_database
+from routes.auth import get_current_user
+from models.user import User
 from datetime import datetime
 from bson import ObjectId
-from ..services.risk_assessment import assess_risk
+from services.risk_assessment import assess_risk
 from fpdf import FPDF
 from fastapi.responses import StreamingResponse
 import io
@@ -21,6 +21,11 @@ async def get_patients(db=Depends(get_database), current_user: User = Depends(ge
 @router.post("/patients", response_model=Patient)
 async def create_patient(patient: Patient, db=Depends(get_database), current_user: User = Depends(get_current_user)):
     patient_data = patient.model_dump(by_alias=True)
+
+    history_fields = ["medicalHistory", "medications", "allergies", "surgicalHistory"]
+    for field in history_fields:
+        if isinstance(patient_data.get(field), str):
+            patient_data[field] = [item.strip() for item in patient_data[field].split(',') if item.strip()]
     risk_assessment = assess_risk(patient_data)
     patient_data.update(risk_assessment)
     
@@ -41,6 +46,11 @@ async def get_patient(patient_id: str, db=Depends(get_database), current_user: U
 @router.put("/patients/{patient_id}", response_model=Patient)
 async def update_patient(patient_id: str, patient: Patient, db=Depends(get_database), current_user: User = Depends(get_current_user)):
     patient_data = patient.model_dump(by_alias=True)
+
+    history_fields = ["medicalHistory", "medications", "allergies", "surgicalHistory"]
+    for field in history_fields:
+        if isinstance(patient_data.get(field), str):
+            patient_data[field] = [item.strip() for item in patient_data[field].split(',') if item.strip()]
     risk_assessment = assess_risk(patient_data)
     patient_data.update(risk_assessment)
 
