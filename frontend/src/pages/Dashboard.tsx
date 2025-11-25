@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import Layout from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PatientProvider, usePatients } from '@/context/PatientContext';
@@ -8,9 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { FileText, Download, AlertCircle, CheckCircle, History } from 'lucide-react';
 import { toast } from 'sonner';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
-import ReportGenerator from '@/components/ReportGenerator';
+import api from '@/utils/api';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge'; // Import Badge component
 
@@ -18,7 +16,6 @@ const DashboardContent = () => {
   const { getSelectedPatient, selectedPatientId, selectPatient, updatePatient } = usePatients();
   const selectedPatient = getSelectedPatient();
   const [isEditing, setIsEditing] = useState(false);
-  const reportRef = useRef<HTMLDivElement>(null);
 
   const handleAddPatientClick = () => {
     selectPatient(null);
@@ -54,53 +51,37 @@ const DashboardContent = () => {
 
     toast.info(`Generating PDF report for ${selectedPatient.name}...`);
 
-    if (reportRef.current) {
-      try {
-        // Temporarily make the report visible for html2canvas to render correctly
-        reportRef.current.style.display = 'block';
-        const canvas = await html2canvas(reportRef.current, {
-          scale: 2,
-          useCORS: true,
-          windowWidth: reportRef.current.scrollWidth,
-          windowHeight: reportRef.current.scrollHeight,
-        });
-        // Hide the report again
-        reportRef.current.style.display = 'none';
-
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF({
-          orientation: 'portrait',
-          unit: 'px',
-          format: 'a4',
-        });
-
-        const imgWidth = pdf.internal.pageSize.getWidth();
-        const pageHeight = pdf.internal.pageSize.getHeight();
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        let heightLeft = imgHeight;
-        let position = 0;
-
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-
-        while (heightLeft >= 0) {
-          position = heightLeft - imgHeight;
-          pdf.addPage();
-          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-          heightLeft -= pageHeight;
+    try {
+      const response = await api.post(
+        `/patients/${selectedPatient.id}/generate-report`,
+        {},
+        {
+          responseType: 'blob', // Important for handling file downloads
         }
+      );
 
-        pdf.save(`Anesthesia_Risk_Report_${selectedPatient.name.replace(/\s/g, '_')}.pdf`);
-        toast.success(`PDF report for ${selectedPatient.name} generated and downloaded.`);
-      } catch (error) {
-        console.error("Error generating PDF:", error);
-        toast.error("Failed to generate PDF report.");
-        if (reportRef.current) {
-          reportRef.current.style.display = 'none';
-        }
-      }
-    } else {
-      toast.error("Report generator not found. Please try again.");
+      // Create a blob from the response
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+
+      // Create a link element to trigger the download
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute(
+        'download',
+        `Anesthesia_Risk_Report_${selectedPatient.name.replace(/\s/g, '_')}.pdf`
+      );
+
+      // Append to the document, click, and then remove
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast.success(`PDF report for ${selectedPatient.name} generated and downloaded.`);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast.error("Failed to generate PDF report. Please try again.");
     }
   };
 
@@ -270,10 +251,6 @@ const DashboardContent = () => {
             )}
           </div>
         </div>
-      </div>
-      {/* Hidden ReportGenerator component for PDF generation */}
-      <div ref={reportRef} style={{ position: 'absolute', left: '-9999px', top: '-9999px', zIndex: -1 }}>
-        {selectedPatient && <ReportGenerator patient={selectedPatient} />}
       </div>
     </Layout>
   );

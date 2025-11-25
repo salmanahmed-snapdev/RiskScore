@@ -2,6 +2,7 @@ import React, { createContext, useState, useContext, useEffect, ReactNode } from
 import { Patient } from '@/types/patient';
 import { toast } from 'sonner';
 import { useRiskAssessment } from '@/hooks/useRiskAssessment'; // Import the new hook
+import api from '@/utils/api';
 
 interface PatientContextType {
   patients: Patient[];
@@ -11,6 +12,7 @@ interface PatientContextType {
   deletePatient: (id: string) => void;
   selectPatient: (id: string | null) => void;
   getSelectedPatient: () => Patient | undefined;
+  fetchPatients: () => void;
 }
 
 const PatientContext = createContext<PatientContextType | undefined>(undefined);
@@ -19,28 +21,19 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
 
-  // Load patients from localStorage on initial mount
-  useEffect(() => {
+  const fetchPatients = async () => {
     try {
-      const storedPatients = localStorage.getItem('patients');
-      if (storedPatients) {
-        setPatients(JSON.parse(storedPatients));
-      }
+      const response = await api.get('/patients');
+      setPatients(response.data);
     } catch (error) {
-      console.error("Failed to load patients from localStorage", error);
+      console.error("Failed to fetch patients", error);
       toast.error("Failed to load patient data.");
     }
-  }, []);
+  };
 
-  // Save patients to localStorage whenever the patients state changes
   useEffect(() => {
-    try {
-      localStorage.setItem('patients', JSON.stringify(patients));
-    } catch (error) {
-      console.error("Failed to save patients to localStorage", error);
-      toast.error("Failed to save patient data.");
-    }
-  }, [patients]);
+    fetchPatients();
+  }, []);
 
   // Function to calculate and apply risk assessment
   const calculateAndApplyRisk = (patientData: Omit<Patient, 'id' | 'lastModified' | 'modifiedBy'> | Patient): Patient => {
@@ -84,51 +77,65 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
     } as Patient; // Cast back to Patient
   };
 
-  const addPatient = (newPatientData: Omit<Patient, 'id' | 'lastModified' | 'modifiedBy' | 'asaScore' | 'stopBangScore' | 'rcriScore' | 'metsScore' | 'riskCategory' | 'criticalAlerts' | 'preOpRecommendations' | 'completedRecommendations'>) => {
-    const patientWithRisk = calculateAndApplyRisk(newPatientData);
-    const newPatient: Patient = {
-      ...patientWithRisk,
-      id: `patient-${Date.now()}`, // Simple unique ID
-      lastModified: new Date().toISOString(),
-      modifiedBy: localStorage.getItem('currentUser') || 'Unknown User',
-      completedRecommendations: [], // Initialize as empty for new patients
-    };
-    setPatients((prev) => [...prev, newPatient]);
-    setSelectedPatientId(newPatient.id); // Select the newly added patient
-    toast.success(`Patient ${newPatient.name} added successfully.`);
-  };
-
-  const updatePatient = (id: string, updatedFields: Partial<Patient>) => {
-    setPatients((prev) =>
-      prev.map((patient) => {
-        if (patient.id === id) {
-          const updatedPatientData = {
-            ...patient,
-            ...updatedFields,
-            lastModified: new Date().toISOString(),
-            modifiedBy: localStorage.getItem('currentUser') || 'Unknown User',
-          };
-          // Recalculate risk scores, but preserve completedRecommendations if not explicitly updated
-          const recalculatedPatient = calculateAndApplyRisk(updatedPatientData);
-          return {
-            ...recalculatedPatient,
-            completedRecommendations: updatedFields.completedRecommendations !== undefined
-              ? updatedFields.completedRecommendations
-              : patient.completedRecommendations,
-          };
-        }
-        return patient;
-      }),
-    );
-    toast.success("Patient updated successfully.");
-  };
-
-  const deletePatient = (id: string) => {
-    setPatients((prev) => prev.filter((patient) => patient.id !== id));
-    if (selectedPatientId === id) {
-      setSelectedPatientId(null);
+  const addPatient = async (newPatientData: Omit<Patient, 'id' | 'lastModified' | 'modifiedBy' | 'asaScore' | 'stopBangScore' | 'rcriScore' | 'metsScore' | 'riskCategory' | 'criticalAlerts' | 'preOpRecommendations' | 'completedRecommendations'>) => {
+    try {
+      const patientWithRisk = calculateAndApplyRisk(newPatientData);
+      const newPatient: Omit<Patient, 'id'> = {
+        ...patientWithRisk,
+        lastModified: new Date().toISOString(),
+        modifiedBy: localStorage.getItem('currentUser') || 'Unknown User',
+        completedRecommendations: [],
+      };
+      const response = await api.post('/patients', newPatient);
+      setPatients((prev) => [...prev, response.data]);
+      setSelectedPatientId(response.data.id);
+      toast.success(`Patient ${response.data.name} added successfully.`);
+      fetchPatients();
+    } catch (error) {
+      console.error("Failed to add patient", error);
+      toast.error("Failed to add patient.");
     }
-    toast.info("Patient deleted.");
+  };
+
+  const updatePatient = async (id: string, updatedFields: Partial<Patient>) => {
+    try {
+      const patient = patients.find((p) => p.id === id);
+      if (!patient) return;
+
+      const updatedPatientData = {
+        ...patient,
+        ...updatedFields,
+        lastModified: new Date().toISOString(),
+        modifiedBy: localStorage.getItem('currentUser') || 'Unknown User',
+      };
+      
+      const recalculatedPatient = calculateAndApplyRisk(updatedPatientData);
+
+      const response = await api.put(`/patients/${id}`, recalculatedPatient);
+      setPatients((prev) =>
+        prev.map((p) => (p.id === id ? response.data : p))
+      );
+      toast.success("Patient updated successfully.");
+      fetchPatients();
+    } catch (error) {
+      console.error("Failed to update patient", error);
+      toast.error("Failed to update patient.");
+    }
+  };
+
+  const deletePatient = async (id: string) => {
+    try {
+      await api.delete(`/patients/${id}`);
+      setPatients((prev) => prev.filter((patient) => patient.id !== id));
+      if (selectedPatientId === id) {
+        setSelectedPatientId(null);
+      }
+      toast.info("Patient deleted.");
+      fetchPatients();
+    } catch (error) {
+      console.error("Failed to delete patient", error);
+      toast.error("Failed to delete patient.");
+    }
   };
 
   const selectPatient = (id: string | null) => {
@@ -149,6 +156,7 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
         deletePatient,
         selectPatient,
         getSelectedPatient,
+        fetchPatients
       }}
     >
       {children}

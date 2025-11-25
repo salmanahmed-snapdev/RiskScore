@@ -3,3 +3,4 @@ uvicorn[standard]
 python-dotenv
 pymongo[srv]
 fpdf2
+python-dotenv
