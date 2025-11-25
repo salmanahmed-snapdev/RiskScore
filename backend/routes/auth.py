@@ -21,14 +21,14 @@ class GoogleAuthCode(BaseModel):
     code: str
 
 @router.post("/auth/google", response_model=Token)
-async def auth_google(auth_code: GoogleAuthCode, client: AsyncIOMotorClient = Depends(get_database)):
+async def auth_google(auth_code: GoogleAuthCode, db = Depends(get_database)):
     GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
     GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET")
     JWT_SECRET = os.environ.get("JWT_SECRET")
     
     token_url = "https://oauth2.googleapis.com/token"
-    redirect_uri = "http://localhost:5173"  # This should be the same as in your Google Cloud console
-    
+    redirect_uri = "http://localhost:5137/auth/callback"
+        
     data = {
         "code": auth_code.code,
         "client_id": GOOGLE_CLIENT_ID,
@@ -37,8 +37,8 @@ async def auth_google(auth_code: GoogleAuthCode, client: AsyncIOMotorClient = De
         "grant_type": "authorization_code"
     }
     
-    async with httpx.AsyncClient() as client:
-        token_response = await client.post(token_url, data=data)
+    async with httpx.AsyncClient() as http_client:
+        token_response = await http_client.post(token_url, data=data)
     
     token_json = token_response.json()
     
@@ -50,12 +50,11 @@ async def auth_google(auth_code: GoogleAuthCode, client: AsyncIOMotorClient = De
     user_info_url = "https://www.googleapis.com/oauth2/v1/userinfo"
     headers = {"Authorization": f"Bearer {access_token}"}
     
-    async with httpx.AsyncClient() as client:
-        user_response = await client.get(user_info_url, headers=headers)
+    async with httpx.AsyncClient() as http_client:
+        user_response = await http_client.get(user_info_url, headers=headers)
     
     user_info = user_response.json()
     
-    db = client.get_database()
     
     # Check if user exists
     user = await db.users.find_one({"google_id": user_info["id"]})
@@ -68,6 +67,7 @@ async def auth_google(auth_code: GoogleAuthCode, client: AsyncIOMotorClient = De
             google_id=user_info["id"]
         )
         await db.users.insert_one(new_user.model_dump(by_alias=True))
+        user = new_user
     
     jwt_payload = {
         "sub": user_info["id"],
@@ -79,7 +79,7 @@ async def auth_google(auth_code: GoogleAuthCode, client: AsyncIOMotorClient = De
     return {"access_token": jwt_token, "token_type": "bearer"}
 
 
-async def get_current_user(token: str = Depends(oauth2_scheme), client: AsyncIOMotorClient = Depends(get_database)):
+async def get_current_user(token: str = Depends(oauth2_scheme), db = Depends(get_database)):
     credentials_exception = HTTPException(
         status_code=401,
         detail="Could not validate credentials",
@@ -94,7 +94,6 @@ async def get_current_user(token: str = Depends(oauth2_scheme), client: AsyncIOM
     except jwt.PyJWTError:
         raise credentials_exception
     
-    db = client.get_database()
     user = await db.users.find_one({"google_id": google_id})
     if user is None:
         raise credentials_exception

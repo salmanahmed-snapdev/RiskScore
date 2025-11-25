@@ -5,7 +5,7 @@ import { LogOut, Settings } from 'lucide-react';
 
 const Header = () => {
   const navigate = useNavigate();
-  const currentUser = localStorage.getItem('currentUser');
+  const currentUser = JSON.parse(localStorage.getItem('currentUser'));
 
   const handleLogout = () => {
     localStorage.removeItem('isLoggedIn');
@@ -19,7 +19,7 @@ const Header = () => {
         Anesthesia Risk Score 2.0
       </Link>
       <div className="flex items-center space-x-4">
-        {currentUser && <span className="text-sm text-muted-foreground">Welcome, {currentUser}</span>}
+        {currentUser && <span className="text-sm text-muted-foreground">Welcome, {currentUser?.name}</span>}
         <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>
           <Settings className="h-5 w-5" />
         </Button>
