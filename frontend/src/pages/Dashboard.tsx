@@ -52,6 +52,7 @@ const DashboardContent = () => {
     toast.info(`Generating PDF report for ${selectedPatient.name}...`);
 
     try {
+      console.log(selectedPatient)
       const response = await api.post(
         `/patients/${selectedPatient.id}/generate-report`,
         {},

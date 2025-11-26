@@ -1,9 +1,10 @@
 from typing import List, Optional
 from pydantic import BaseModel, Field
 from datetime import datetime
+from bson import ObjectId
 
 class Patient(BaseModel):
-    id: Optional[str] = Field(None, alias='_id')
+    id: Optional[str] = Field(None, alias="_id")
     name: str
     dateOfBirth: str
     medicalHistory: Optional[List[str]] = []
@@ -29,5 +30,8 @@ class Patient(BaseModel):
         populate_by_name = True
         json_encoders = {
             datetime: lambda dt: dt.isoformat(),
-            
+            ObjectId: str
         }
+
+class PatientOut(Patient):
+    id: str

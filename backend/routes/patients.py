@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List
-from models.patient import Patient
+from models.patient import Patient, PatientOut
 from main import get_database
 from routes.auth import get_current_user
 from models.user import User
@@ -13,15 +13,15 @@ import io
 
 router = APIRouter()
 
-@router.get("/patients", response_model=List[Patient])
+@router.get("/patients", response_model=List[PatientOut])
 async def get_patients(db=Depends(get_database), current_user: User = Depends(get_current_user)):
     patients = await db.patients.find().to_list(100)
-    return patients
+    return [PatientOut(**p, id=str(p["_id"])) for p in patients]
 
-@router.post("/patients", response_model=Patient)
+@router.post("/patients", response_model=PatientOut)
 async def create_patient(patient: Patient, db=Depends(get_database), current_user: User = Depends(get_current_user)):
-    patient_data = patient.model_dump(by_alias=True)
-
+    patient_data = patient.model_dump(exclude={"id"}, by_alias=True)
+ 
     history_fields = ["medicalHistory", "medications", "allergies", "surgicalHistory"]
     for field in history_fields:
         if isinstance(patient_data.get(field), str):
@@ -34,18 +34,18 @@ async def create_patient(patient: Patient, db=Depends(get_database), current_use
     
     new_patient = await db.patients.insert_one(patient_data)
     created_patient = await db.patients.find_one({"_id": new_patient.inserted_id})
-    return created_patient
+    return PatientOut(**created_patient, id=str(created_patient["_id"]))
 
-@router.get("/patients/{patient_id}", response_model=Patient)
+@router.get("/patients/{patient_id}", response_model=PatientOut)
 async def get_patient(patient_id: str, db=Depends(get_database), current_user: User = Depends(get_current_user)):
     patient = await db.patients.find_one({"_id": ObjectId(patient_id)})
     if patient is None:
         raise HTTPException(status_code=404, detail="Patient not found")
-    return patient
+    return PatientOut(**patient, id=str(patient["_id"]))
 
-@router.put("/patients/{patient_id}", response_model=Patient)
+@router.put("/patients/{patient_id}", response_model=PatientOut)
 async def update_patient(patient_id: str, patient: Patient, db=Depends(get_database), current_user: User = Depends(get_current_user)):
-    patient_data = patient.model_dump(by_alias=True)
+    patient_data = patient.model_dump(by_alias=True, exclude={"id"})
 
     history_fields = ["medicalHistory", "medications", "allergies", "surgicalHistory"]
     for field in history_fields:
@@ -61,7 +61,7 @@ async def update_patient(patient_id: str, patient: Patient, db=Depends(get_datab
     updated_patient = await db.patients.find_one({"_id": ObjectId(patient_id)})
     if updated_patient is None:
         raise HTTPException(status_code=404, detail="Patient not found")
-    return updated_patient
+    return PatientOut(**updated_patient, id=str(updated_patient["_id"]))
 
 @router.delete("/patients/{patient_id}")
 async def delete_patient(patient_id: str, db=Depends(get_database), current_user: User = Depends(get_current_user)):
@@ -72,7 +72,11 @@ async def delete_patient(patient_id: str, db=Depends(get_database), current_user
 
 @router.post("/patients/{patient_id}/generate-report")
 async def generate_report(patient_id: str, db=Depends(get_database), current_user: User = Depends(get_current_user)):
+    if not ObjectId.is_valid(patient_id):
+        raise HTTPException(status_code=404, detail="Patient not found")
     patient = await db.patients.find_one({"_id": ObjectId(patient_id)})
+    patient["id"] = str(patient["_id"])
+    patient["_id"] = str(patient["_id"])
     if patient is None:
         raise HTTPException(status_code=404, detail="Patient not found")
 
@@ -105,6 +109,6 @@ async def generate_report(patient_id: str, db=Depends(get_database), current_use
     for recommendation in patient.get('preOpRecommendations', []):
         pdf.cell(200, 10, txt=f"- {recommendation}", ln=True)
 
-    pdf_output = pdf.output(dest='S').encode('latin-1')
+    pdf_output = pdf.output(dest='S')
     
     return StreamingResponse(io.BytesIO(pdf_output), media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename=patient_{patient_id}_risk_profile.pdf"})

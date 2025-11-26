@@ -66,8 +66,8 @@ async def auth_google(auth_code: GoogleAuthCode, db = Depends(get_database)):
             email=user_info["email"],
             google_id=user_info["id"]
         )
-        await db.users.insert_one(new_user.model_dump(by_alias=True))
-        user = new_user
+        result = await db.users.insert_one(new_user.model_dump(exclude={"id"}, by_alias=True))
+        user = await db.users.find_one({"_id": result.inserted_id})
     
     jwt_payload = {
         "sub": user_info["id"],
@@ -97,9 +97,11 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db = Depends(get
     user = await db.users.find_one({"google_id": google_id})
     if user is None:
         raise credentials_exception
+    user["_id"] = str(user["_id"])
     return user
 
 
 @router.get("/auth/me", response_model=User)
 async def read_users_me(current_user: User = Depends(get_current_user)):
+    current_user["_id"] = str(current_user["_id"])
     return current_user

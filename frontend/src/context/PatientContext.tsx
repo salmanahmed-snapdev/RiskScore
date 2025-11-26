@@ -33,6 +33,7 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
 
   useEffect(() => {
     fetchPatients();
+    console.log(patients)
   }, []);
 
   // Function to calculate and apply risk assessment
