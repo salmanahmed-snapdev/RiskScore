@@ -11,12 +11,13 @@ import Dashboard from "./pages/Dashboard";
 import Settings from "./pages/Settings"; // Import the new Settings page
 import React from "react";
 import { ThemeProvider } from "@/components/theme-provider"; // Import ThemeProvider
+import { AuthProvider, useAuth } from "./context/AuthContext"; // Import AuthProvider and useAuth
 
 const queryClient = new QueryClient();
 
 // PrivateRoute component to protect dashboard access
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
-  const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+  const { isLoggedIn } = useAuth();
   return isLoggedIn ? <>{children}</> : <Navigate to="/login" />;
 };
 
@@ -26,31 +27,33 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/login" element={<Login />} />
-             <Route path="/auth/callback" element={<AuthCallback />} />
-            <Route 
-              path="/dashboard" 
-              element={
-                <PrivateRoute>
-                  <Dashboard />
-                </PrivateRoute>
-              } 
-            />
-            <Route 
-              path="/settings" 
-              element={
-                <PrivateRoute>
-                  <Settings />
-                </PrivateRoute>
-              } 
-            />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
+        <AuthProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/auth/callback" element={<AuthCallback />} />
+              <Route
+                path="/dashboard"
+                element={
+                  <PrivateRoute>
+                    <Dashboard />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <PrivateRoute>
+                    <Settings />
+                  </PrivateRoute>
+                }
+              />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </AuthProvider>
       </TooltipProvider>
     </ThemeProvider>
   </QueryClientProvider>

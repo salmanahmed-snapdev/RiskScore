@@ -2,14 +2,15 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { LogOut, Settings } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 const Header = () => {
   const navigate = useNavigate();
+  const { logout } = useAuth();
   const currentUser = JSON.parse(localStorage.getItem('currentUser'));
 
   const handleLogout = () => {
-    localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('currentUser');
+    logout();
     navigate('/login');
   };
 
