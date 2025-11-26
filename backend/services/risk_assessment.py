@@ -1,77 +1,120 @@
-def calculate_asa_score(patient_data):
-    # Simplified ASA score calculation
-    # This should be replaced with a more comprehensive logic based on clinical guidelines
-    age = patient_data.get("age", 0)
-    if age > 80:
-        return 4
-    elif age > 65:
-        return 3
-    elif patient_data.get("comorbidities"):
-        return 2
-    else:
-        return 1
+from datetime import datetime
 
-def calculate_stop_bang_score(patient_data):
-    # Simplified STOP-Bang score calculation
-    score = 0
-    if patient_data.get("snoring"):
-        score += 1
-    if patient_data.get("tiredness"):
-        score += 1
-    if patient_data.get("observed_apnea"):
-        score += 1
-    if patient_data.get("high_blood_pressure"):
-        score += 1
-    if patient_data.get("bmi", 0) > 35:
-        score += 1
-    if patient_data.get("age", 0) > 50:
-        score += 1
-    if patient_data.get("neck_circumference", 0) > 40:
-        score += 1
-    if patient_data.get("gender") == "Male":
-        score += 1
-    return score
+def assess_risk(patient):
+    if not patient:
+        return {
+            "asaScore": None,
+            "stopBangScore": None,
+            "rcriScore": None,
+            "metsScore": None,
+            "riskCategory": None,
+            "criticalAlerts": [],
+            "preOpRecommendations": [],
+        }
 
-def calculate_rcri_score(patient_data):
-    # Simplified RCRI score calculation
-    score = 0
-    if patient_data.get("high_risk_surgery"):
-        score += 1
-    if patient_data.get("history_of_ischemic_heart_disease"):
-        score += 1
-    if patient_data.get("history_of_congestive_heart_failure"):
-        score += 1
-    if patient_data.get("history_of_cerebrovascular_disease"):
-        score += 1
-    if patient_data.get("insulin_dependent_diabetes"):
-        score += 1
-    if patient_data.get("preoperative_serum_creatinine", 0) > 2.0:
-        score += 1
-    return score
-
-def calculate_mets_score(patient_data):
-    # Simplified METs score calculation
-    return patient_data.get("mets_score", 0)
-
-def assess_risk(patient_data):
-    asa_score = calculate_asa_score(patient_data)
-    stop_bang_score = calculate_stop_bang_score(patient_data)
-    rcri_score = calculate_rcri_score(patient_data)
-    mets_score = calculate_mets_score(patient_data)
-
-    risk_category = "Low"
-    if asa_score > 2 or stop_bang_score > 4 or rcri_score > 1:
-        risk_category = "High"
+    medical_history_lower = [h.lower() for h in patient.get('medicalHistory', [])]
+    medications_lower = [m.lower() for m in patient.get('medications', [])]
+    allergies_lower = [a.lower() for a in patient.get('allergies', [])]
+    surgical_history = patient.get('surgicalHistory', [])
+    mallampati_score = patient.get('mallampatiScore')
+    date_of_birth = patient.get('dateOfBirth')
 
     critical_alerts = []
-    if asa_score > 3:
-        critical_alerts.append("High-risk patient (ASA > 3)")
-    if stop_bang_score > 5:
-        critical_alerts.append("High risk for OSA")
-
     pre_op_recommendations = []
-    if risk_category == "High":
-        pre_op_recommendations.append("Consider cardiology consult")
+
+    def has_medical_condition(keywords):
+        return any(any(keyword in history for history in medical_history_lower) for keyword in keywords)
+
+    def has_medication(keywords):
+        return any(any(keyword in med for med in medications_lower) for keyword in keywords)
+
+    def has_allergy(keywords):
+        return any(any(keyword in allergy for allergy in allergies_lower) for keyword in keywords)
+
+    age = None
+    if date_of_birth:
+        try:
+            # Assuming date_of_birth is in ISO format 'YYYY-MM-DDTHH:MM:SS.sssZ'
+            dob = datetime.fromisoformat(date_of_birth.replace('Z', '+00:00'))
+            today = datetime.utcnow().replace(tzinfo=dob.tzinfo)
+            age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+        except (ValueError, TypeError):
+            age = None # Handle cases with invalid date format
+
+
+    # --- ASA Score Calculation (Simplified) ---
+    asa_score = 1
+    if has_medical_condition(['hypertension', 'diabetes', 'obesity', 'smoker', 'alcohol']) or surgical_history:
+        asa_score = max(asa_score, 2)
+    if has_medical_condition(['poorly controlled hypertension', 'poorly controlled diabetes', 'stable angina', 'prior mi', 'prior cva', 'morbid obesity', 'chronic renal failure', 'moderate copd', 'asthma']):
+        asa_score = max(asa_score, 3)
+    if has_medical_condition(['unstable angina', 'severe copd', 'chf', 'recent mi', 'recent cva', 'end-stage renal disease']):
+        asa_score = max(asa_score, 4)
+
+    # --- STOP-Bang Score Calculation (Simplified) ---
+    stop_bang_score = 0
+    if has_medical_condition(['snoring', 'sleep apnea', 'osa']): stop_bang_score += 1
+    if has_medical_condition(['tiredness', 'fatigue', 'sleepy', 'sleep apnea']): stop_bang_score += 1
+    if has_medical_condition(['observed apnea', 'sleep apnea', 'osa']): stop_bang_score += 1
+    if has_medical_condition(['hypertension', 'high blood pressure']): stop_bang_score += 1
+    if has_medical_condition(['morbid obesity']): stop_bang_score += 1
+    if age is not None and age > 50: stop_bang_score += 1
+
+    # --- RCRI Score Calculation (Simplified) ---
+    rcri_score = 0
+    if has_medical_condition(['ischemic heart disease', 'mi', 'angina', 'cad']): rcri_score += 1
+    if has_medical_condition(['congestive heart failure', 'chf']): rcri_score += 1
+    if has_medical_condition(['cerebrovascular disease', 'cva', 'tia']): rcri_score += 1
+    if has_medication(['insulin']): rcri_score += 1
+
+    # --- METs Score Calculation (Simplified) ---
+    mets_score = 4
+    if has_medical_condition(['chf', 'severe copd', 'unstable angina', 'end-stage renal disease']):
+        mets_score = 0
+    elif has_medical_condition(['moderate copd', 'stable angina', 'prior mi', 'prior cva']):
+        mets_score = 2
+
+    # --- Critical Alerts ---
+    if has_medication(['warfarin', 'heparin', 'rivaroxaban', 'apixaban', 'dabigatran', 'edoxaban']):
+        critical_alerts.append('Active anticoagulants')
+        pre_op_recommendations.append('INR/PTT check')
+    if has_allergy(['anaphylaxis', 'severe allergy']):
+        critical_alerts.append('Severe allergies')
+    if stop_bang_score >= 3 or has_medical_condition(['obstructive sleep apnea', 'osa']):
+        critical_alerts.append('Diagnosed Obstructive Sleep Apnea (OSA)')
+        if 'Sleep Study (if not recent)' not in pre_op_recommendations:
+            pre_op_recommendations.append('Sleep Study (if not recent)')
+    if mallampati_score and mallampati_score >= 3:
+        critical_alerts.append(f'Significant airway issue (Mallampati Score {mallampati_score})')
+    if has_medical_condition(['uncontrolled hypertension', 'hypertensive crisis']):
+        critical_alerts.append('Uncontrolled Hypertension')
+        pre_op_recommendations.append('BP optimization')
+    if has_medical_condition(['uncontrolled diabetes', 'diabetic ketoacidosis']):
+        critical_alerts.append('Uncontrolled Diabetes')
+        pre_op_recommendations.append('HbA1c, Glucose optimization')
+    if has_medical_condition(['recent mi', 'recent cva']):
+        critical_alerts.append('Recent MI/CVA')
+        pre_op_recommendations.append('Cardiac/Neurology consult')
+    if has_medical_condition(['pregnancy']):
+        critical_alerts.append('Patient is pregnant')
+        pre_op_recommendations.append('OB clearance')
+
+    # --- Pre-operative Recommendations (General) ---
+    if asa_score >= 3 or rcri_score >= 1 or (age is not None and age > 50 and has_medical_condition(['hypertension', 'diabetes'])):
+        if 'EKG' not in pre_op_recommendations: pre_op_recommendations.append('EKG')
+    if has_medical_condition(['anemia', 'bleeding disorder']):
+        if 'CBC' not in pre_op_recommendations: pre_op_recommendations.append('CBC')
+    if has_medical_condition(['diabetes']):
+        if 'HbA1c' not in pre_op_recommendations: pre_op_recommendations.append('HbA1c')
+    if has_medical_condition(['renal failure', 'liver disease', 'electrolyte imbalance']):
+        if 'CMP' not in pre_op_recommendations: pre_op_recommendations.append('CMP')
+
+    # --- Risk Category Determination ---
+    risk_category = 'Low'
+    if asa_score >= 4 or critical_alerts or stop_bang_score >= 5 or rcri_score >= 3 or mets_score < 2:
+        risk_category = 'High'
+    elif asa_score >= 3 or stop_bang_score >= 3 or rcri_score >= 1 or mets_score < 4:
+        risk_category = 'Moderate'
 
     return {
         "asaScore": asa_score,
@@ -79,6 +122,6 @@ def assess_risk(patient_data):
         "rcriScore": rcri_score,
         "metsScore": mets_score,
         "riskCategory": risk_category,
-        "criticalAlerts": critical_alerts,
-        "preOpRecommendations": pre_op_recommendations,
+        "criticalAlerts": list(set(critical_alerts)),
+        "preOpRecommendations": list(set(pre_op_recommendations)),
     }
