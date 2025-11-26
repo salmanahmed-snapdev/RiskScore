@@ -13,8 +13,7 @@ app = FastAPI()
 
 # CORS configuration
 origins = [
-    "http://localhost:5173",
-    "http://localhost:5137",
+    "https://riskscore-jjvw.onrender.com",
 ]
 
 app.add_middleware(

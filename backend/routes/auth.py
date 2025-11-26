@@ -27,7 +27,7 @@ async def auth_google(auth_code: GoogleAuthCode, db = Depends(get_database)):
     JWT_SECRET = os.environ.get("JWT_SECRET")
     
     token_url = "https://oauth2.googleapis.com/token"
-    redirect_uri = "http://localhost:5137/auth/callback"
+    redirect_uri = "https://riskscore-jjvw.onrender.com/auth/callback"
         
     data = {
         "code": auth_code.code,
