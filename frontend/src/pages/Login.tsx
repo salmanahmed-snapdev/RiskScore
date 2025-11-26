@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Chrome } from 'lucide-react';
 
 const GOOGLE_CLIENT_ID = '968072773992-id5aa0kigq1j8e28coas1sdl6tdk66kj.apps.googleusercontent.com';
-const REDIRECT_URI = 'http://localhost:5137/auth/callback';
+const REDIRECT_URI = 'https://riskscore-jjvw.onrender.com/auth/callback';
 
 const Login = () => {
   const handleGoogleLogin = () => {
