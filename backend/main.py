@@ -1,11 +1,10 @@
 import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-# from pymongo import MongoClient
-from motor.motor_asyncio import AsyncIOMotorClient
-
 from pymongo.errors import ConnectionFailure
 from dotenv import load_dotenv
+
+from db import get_database_client
 
 load_dotenv()
 
@@ -25,32 +24,7 @@ app.add_middleware(
 )
 
 # MongoDB connection
-MONGO_URI = os.getenv("MONGODB_URI")
-DB_NAME = os.getenv("DB_NAME", "snapdev-project-db")
-if not MONGO_URI:
-    # This will be handled by the environment, but as a safeguard:
-    print("Warning: MONGODB_URI environment variable not set. Using a placeholder.")
-    MONGO_URI = "mongodb://localhost:27017/" # Placeholder
-
-try:
-    client = AsyncIOMotorClient(MONGO_URI, serverSelectionTimeoutMS=5000)
-    # The ismaster command is cheap and does not require auth.
-    client.admin.command('ismaster')
-    print("Successfully connected to MongoDB.")
-except ConnectionFailure as e:
-    print(f"Could not connect to MongoDB: {e}")
-    # We don't raise an exception here to allow the app to start,
-    # but the health check will fail.
-    client = None
-except Exception as e:
-    print(f"An unexpected error occurred during MongoDB connection: {e}")
-    client = None
-    
-    
-async def get_database():
-    if client is None:
-        raise HTTPException(status_code=503, detail="Database connection is not available.")
-    return client[DB_NAME]
+client = get_database_client()
 
 
 @app.get("/api/v1/healthz")

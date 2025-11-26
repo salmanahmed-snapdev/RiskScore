@@ -7,7 +7,7 @@ import os
 from datetime import datetime, timedelta
 from motor.motor_asyncio import AsyncIOMotorClient
 from models.user import User
-from main import get_database
+from db import get_database
 
 router = APIRouter()
 
