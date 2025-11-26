@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import List
 from models.patient import Patient, PatientOut
 from db import get_database
-from routes.auth import get_current_user
+from services.auth_service import get_current_user
 from models.user import User
 from datetime import datetime
 from bson import ObjectId

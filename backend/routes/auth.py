@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from motor.motor_asyncio import AsyncIOMotorClient
 from models.user import User
 from db import get_database
+from services.auth_service import get_current_user
 
 router = APIRouter()
 
@@ -79,29 +80,10 @@ async def auth_google(auth_code: GoogleAuthCode, db = Depends(get_database)):
     return {"access_token": jwt_token, "token_type": "bearer"}
 
 
-async def get_current_user(token: str = Depends(oauth2_scheme), db = Depends(get_database)):
-    credentials_exception = HTTPException(
-        status_code=401,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        JWT_SECRET = os.environ.get("JWT_SECRET")
-        payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
-        google_id: str = payload.get("sub")
-        if google_id is None:
-            raise credentials_exception
-    except jwt.PyJWTError:
-        raise credentials_exception
-    
-    user = await db.users.find_one({"google_id": google_id})
-    if user is None:
-        raise credentials_exception
-    user["_id"] = str(user["_id"])
-    return user
 
 
 @router.get("/auth/me", response_model=User)
 async def read_users_me(current_user: User = Depends(get_current_user)):
     current_user["_id"] = str(current_user["_id"])
+    current_user["id"] = str(current_user["_id"])
     return current_user
