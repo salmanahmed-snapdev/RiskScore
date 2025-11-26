@@ -12,4 +12,9 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+export const fetchTruformPatient = async (id: string) => {
+  const response = await api.get(`/truform/${id}`);
+  return response.data;
+};
+
 export default api;
