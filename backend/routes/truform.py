@@ -18,7 +18,7 @@ mock_truform_data: Dict[str, Dict[str, Any]] = {
     }
 }
 
-@router.get("/api/truform/{id}")
+@router.get("/truform/{id}")
 async def get_truform_data(id: str):
     patient_data = mock_truform_data.get(id)
     if patient_data:
