@@ -148,19 +148,19 @@ const PatientForm: React.FC<PatientFormProps> = ({ patientToEdit, onFormSubmitSu
         toast.success("Truform data loaded into form.");
       } catch (error) {
         console.error("Error fetching TruForm data:", error);
-        toast.error("Failed to fetch TruForm data. Loading mock data instead.");
+        toast.error("Failed to fetch TruForm data.");
         // Fallback to mock data on error
-        form.reset({
-          name: 'Jane Doe (Mock)',
-          dateOfBirth: '1985-03-15',
-          medicalHistory: 'Hypertension, Type 2 Diabetes, Asthma',
-          medications: 'Lisinopril 10mg, Metformin 500mg, Albuterol inhaler',
-          allergies: 'Penicillin',
-          surgicalHistory: 'Appendectomy (2005), Tonsillectomy (1990)',
-          mallampatiScore: 2,
-          airwayExamFindings: 'Normal mouth opening, visible uvula',
-          clinicianNotes: 'Patient presents for wisdom tooth extraction. Well-controlled chronic conditions.',
-        });
+        // form.reset({
+        //   name: 'Jane Doe (Mock)',
+        //   dateOfBirth: '1985-03-15',
+        //   medicalHistory: 'Hypertension, Type 2 Diabetes, Asthma',
+        //   medications: 'Lisinopril 10mg, Metformin 500mg, Albuterol inhaler',
+        //   allergies: 'Penicillin',
+        //   surgicalHistory: 'Appendectomy (2005), Tonsillectomy (1990)',
+        //   mallampatiScore: 2,
+        //   airwayExamFindings: 'Normal mouth opening, visible uvula',
+        //   clinicianNotes: 'Patient presents for wisdom tooth extraction. Well-controlled chronic conditions.',
+        // });
       }
     }
   };
